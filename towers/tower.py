@@ -1,11 +1,16 @@
 import pygame
-from menu.menu import Menu
+from menu.menu import *
 import os
 import math
+from functions import *
+import random
 
-menu_bg = pygame.transform.scale(pygame.image.load(os.path.join("game_assets", "menu.png")).convert_alpha(), (120, 70))
-upgrade_btn = pygame.transform.scale(pygame.image.load(os.path.join("game_assets", "upgrade.png")).convert_alpha(), (50, 50))
-
+menu_bg = pygame.transform.scale(load_image("game_assets", "tower_menu.png").convert_alpha(), (120, 70))
+upgrade_btn = pygame.transform.scale(load_image("game_assets", "button_upgrade.png").convert_alpha(), (32, 32))
+sell_btn = pygame.transform.scale(load_image("game_assets", "button_sell.png").convert_alpha(), (32, 32))
+turret_image = pygame.transform.scale(load_image("game_assets", "rocket.png"),(64, 64))
+tower_base = pygame.transform.scale(load_image("game_assets", "tower_base.png").convert_alpha(), (64, 64))
+structure_placement_sound = pygame.mixer.Sound(os.path.join("game_assets", "structure_placement.mp3"))
 
 class Tower:
     """
@@ -16,18 +21,30 @@ class Tower:
         self.y = y
         self.width = 0
         self.height = 0
-        self.sell_price = [0,0,0]
-        self.price = [0,0,0]
+        self.sell_value = [0,0,0, None]
+        self.price = [0,0,0, None]
+        self.upgrade_bonus_dmg = [0, 2, 3, None]
         self.level = 1
         self.selected = False
+        self.name = "default tower"
         # define menu and buttons
-        self.menu = Menu(self, self.x, self.y, menu_bg, [2000, "MAX"])
+        self.menu_bg = menu_bg
+        #self.menu = TowerMenu(self, self.x, self.y, 120, 70, self.menu_bg)
+        self.menu = TowerMenu(self.x, self.y - 50, 250, 122, self.menu_bg, self.sell_value)
+        self.menu.set_tower_details(self)
         self.menu.add_btn(upgrade_btn, "Upgrade")
-
-        self.tower_imgs = []
+        self.menu.add_btn(sell_btn, "Sell")
+        self.turret_angle = 0
+        self.turret_image = turret_image
+        self.tower_base = tower_base
         self.damage = 1
-
+        self.delay = self.attack_speed = 10 #lower is fast
         self.place_color = (0,0,255, 100)
+        self.upgrade_btn = upgrade_btn
+        self.attack_speed = 1
+        self.max_delay = 50
+        self.delay = 50
+        self.structure_placement_sound = structure_placement_sound
 
     def draw(self, win):
         """
@@ -35,7 +52,7 @@ class Tower:
         :param win: surface
         :return: None
         """
-        img = self.tower_imgs[self.level - 1]
+        img = self.tower_base
         win.blit(img, (self.x-img.get_width()//2, self.y-img.get_height()//2))
 
         # draw menu
@@ -65,7 +82,8 @@ class Tower:
         :param Y: int
         :return: bool
         """
-        img = self.tower_imgs[self.level - 1]
+        #img = self.tower_imgs[self.level - 1]
+        img = self.turret_image
         if X <= self.x - img.get_width()//2 + self.width and X >= self.x - img.get_width()//2:
             if Y <= self.y + self.height - img.get_height()//2 and Y >= self.y - img.get_height()//2:
                 return True
@@ -76,16 +94,40 @@ class Tower:
         call to sell the tower, returns sell price
         :return: int
         """
-        return self.sell_price[self.level-1]
+        return self.sell_value[self.level-1]
+
+    def get_next_level_info(self, bonus):
+        """
+        Get the next level value of the requested bonus
+        :param bonus: list of int
+        :returns: the value of list index of the requested bonus
+        """
+        if (self.level+1) > len(bonus):
+            return "MAX"
+        return bonus[self.level]
+
+    def place_structure(self):
+        """
+        Play sound
+        :returns: None
+        """
+        action_sound = pygame.mixer.Sound(self.structure_placement_sound)
+        action_sound.set_volume(0.6)
+        action_sound.play()
 
     def upgrade(self):
         """
         upgrades the tower for a given cost
         :return: None
         """
-        if self.level < len(self.tower_imgs):
+        if self.level < len(self.turret_imgs):
             self.level += 1
-            self.damage += 1
+            self.damage += self.upgrade_bonus_dmg[self.level-1]
+            self.accuracy += self.upgrade_bonus_accuracy[self.level - 1]
+            self.range += self.upgrade_bonus_range[self.level - 1]
+            self.attack_speed += self.upgrade_bonus_atk_speed[self.level - 1]
+            self.turret_image = self.turret_imgs[self.level][0]
+
 
     def get_upgrade_cost(self):
         """
@@ -93,6 +135,13 @@ class Tower:
         :return: int
         """
         return self.price[self.level-1]
+
+    def get_sales_value(self):
+        """
+        returns the sales value
+        :return: int
+        """
+        return self.sell_value[self.level-1]
 
     def move(self, x, y):
         """
@@ -117,4 +166,31 @@ class Tower:
         else:
             return True
 
+    def rotate(self, turret_angle, offset, pivot_point):
+        """
+        Rotate the surface around the pivot point.
+        Args:
+            angle (float): Rotate by this angle.
+            pivot (tuple, list, pygame.math.Vector2): The pivot point.
+            offset (pygame.math.Vector2): This vector is added to the pivot.
+        """
+        rotated_image = pygame.transform.rotozoom(self.turret_image, (turret_angle - 180)*-1, 1)  # Rotate the image.
+        rotated_offset = offset.rotate(turret_angle)  # Rotate the offset vector.
+        # Add the offset vector to the center/pivot point to shift the rect.
+        rect = rotated_image.get_rect(center=pivot_point + rotated_offset)
+        return rotated_image, rect  # Return the rotated image
+
+    def find_target(self, enemies):
+        """
+        Action for when attacking
+        :param enemies: enemy
+        :return: None
+        """
+
+    def attack(self, enemies):
+        """
+        Action for when attacking
+        :param enemies: enemy
+        :return: None
+        """
 
