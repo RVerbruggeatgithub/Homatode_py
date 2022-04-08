@@ -8,13 +8,13 @@ from functions import *
 
 
 class Enemy:
-    def __init__(self):
+    def __init__(self, path):
         self.width = 64
         self.height = 64
         self.animation_count = 0
         self.health = 1
         self.vel = 3
-        self.path = [(0, 429),(47, 429), (124, 418), (216, 386), (280, 353), (333, 329), (412, 323), (481, 276), (540, 209), (600, 186), (656, 203), (718, 263), (820, 374), (900, 485), (916, 582), (953, 696), (1008, 770), (1092, 780), (1180, 750), (1199, 661), (1222, 556), (1268, 518), (1292, 458), (1285, 389), (1236, 338), (1209, 296), (1207, 220), (1216, 94), (1218, 18)]
+        self.path = path
         self.travelled_path = []
         self.x = self.path[0][0]
         self.y = self.path[0][1]
@@ -69,10 +69,10 @@ class Enemy:
         length = 50
         move_by = length / self.max_health
         health_bar = round(move_by * self.health)
-
-        pygame.draw.rect(win, (255, 255, 255), (self.x - 31, self.y - 41, (length+2), 6), 0)
-        pygame.draw.rect(win, (255,0,0), (self.x-30, self.y- 40, length, 4), 0)
-        pygame.draw.rect(win, (0, 255, 0), (self.x-30, self.y - 40, health_bar, 4), 0)
+        if self.health < self.max_health:
+            pygame.draw.rect(win, (255, 255, 255), (self.x - 31, self.y - 41, (length+2), 6), 0)
+            pygame.draw.rect(win, (255,0,0), (self.x-30, self.y- 40, length, 4), 0)
+            pygame.draw.rect(win, (0, 255, 0), (self.x-30, self.y - 40, health_bar, 4), 0)
 
     def collide(self, X, Y):
         """
@@ -108,7 +108,6 @@ class Enemy:
 
         delta_x = x2 - x1
         delta_y = y2 - y1
-        distance = math.sqrt(delta_x**2 + delta_y**2)
         y_mod = -1
         if 0 < delta_y > 0:
             y_mod = delta_y / abs(delta_y)
