@@ -6,6 +6,7 @@ from functions import *
 #https://www.youtube.com/watch?v=iLHAKXQBOoA 2:06:00 towers!
 from menu.menu import *
 from towers.minigunTower import MinigunTower
+from towers.rocketTower import RocketTower
 import random
 import time
 
@@ -17,7 +18,7 @@ ico_minigun = pygame.transform.scale(load_image("game_assets","ico_minigun.png")
 ico_rocket = pygame.transform.scale(load_image("game_assets","ico_rocket.png").convert_alpha(), (50, 50))
 ico_laser = pygame.transform.scale(load_image("game_assets","ico_laser.png").convert_alpha(), (50, 50))
 pygame.font.init()
-attack_tower_names = ["Minigun Tower"]
+attack_tower_names = ["Minigun Tower", "Rocket Tower"]
 #for font in pygame.font.get_fonts():
 #    print(font)
 
@@ -25,10 +26,19 @@ class Game:
     def __init__(self):
         self.width = 1500
         self.height = 800
-        self.win = pygame.display.set_mode((self.width, self.height))
+        self.win = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
         self.enemies = []
         self.gate_health = 1000
-        self.money = 20000
+        self.money = 300000
+        self.path = [(0, 429), (47, 429), (124, 418), (216, 386), (280, 353), (333, 329), (412, 323), (481, 276),
+                     (540, 209), (600, 186), (656, 203), (718, 263), (820, 374), (900, 485), (916, 582), (953, 696),
+                     (1008, 770), (1092, 780), (1180, 750), (1199, 661), (1222, 556), (1268, 518), (1292, 458),
+                     (1285, 389), (1236, 338), (1209, 296), (1207, 220), (1216, 94), (1218, 18)]
+        self.buildable_areas = [[(283, 393), (462, 360), (597, 240), (755, 378), (842, 564), (297, 582)],
+                                [(108, 362), (302, 274), (435, 221), (532, 151), (664, 138), (848, 321), (922, 446),
+                                 (967, 391), (1033, 249), (786, 9), (93, 13)],
+                                [(1023, 793), (1497, 496), (1498, 797)]
+                                ]
         self.gate_life_font = pygame.font.SysFont("comicsans", 32)
         self.bg = load_image("game_assets", "kremze.png")
         self.bg = pygame.transform.scale(self.bg, (self.width, self.height))
@@ -38,7 +48,7 @@ class Game:
         self.gate_hp_indicator = pygame.transform.scale(load_image("game_assets", "gate_hp_indicator.png"), (32, 32))
         self.clicks = []
         self.timer = 0
-        self.attack_towers = [MinigunTower(128, 478), MinigunTower(426, 278), MinigunTower(784, 378)]
+        self.attack_towers = []
         self.pause = True
         self.moving_object = None
         self.play_pause_button = PlayPauseButton(play_btn, pause_btn, 129, self.height - 142)
@@ -48,8 +58,9 @@ class Game:
         minigun_t = MinigunTower(0, 0)
         # below's second parameter is the name of the button
         self.menu.add_btn(ico_minigun, "buy_minigun", "Minigun", minigun_t.price[0])
-        self.menu.add_btn(ico_minigun, "buy_fish", "Buy Fish",  minigun_t.price[0])
-        self.menu.add_btn(ico_minigun, "buy_chips", "Buy Chips",  minigun_t.price[0])
+        self.menu.add_btn(ico_rocket, "buy_rocket", "RocketTower",  minigun_t.price[0])
+        self.menu.add_btn(ico_laser, "buy_chips", "Buy Chips",  minigun_t.price[0])
+        self.menu.add_btn(ico_laser, "buy_cannon", "Buy Cannon", minigun_t.price[0])
         del minigun_t
         self.random_timer = 1
 
@@ -65,25 +76,31 @@ class Game:
                 if time.time() - self.timer > self.random_timer:
                         self.timer = time.time()
                         #self.random_timer = random.randint(10, 35) / 15
-                        self.enemies.append(random.choice([Dragon()]))
+                        self.enemies.append(random.choice([Dragon(self.path)]))
 
             mouse_pos = pygame.mouse.get_pos()
-
+            valid_area = False
             # Check for moving Objects:
             if self.moving_object:
+                valid_area = self.moving_object.locations_collide(self.buildable_areas)
                 self.moving_object.move(mouse_pos[0], mouse_pos[1])
                 #tower_list = self.attack_towers[:] + self.support_towers[:]
                 tower_list = self.attack_towers[:]
                 collide = False
+                if valid_area:
+                    self.moving_object.place_color = (0, 0, 255, 100)
+                else:
+                    self.moving_object.place_color = (255, 0, 0, 100)
+
                 for tower in tower_list:
-                    if tower.collide(self.moving_object):
+                    if tower.collide(self.moving_object) and valid_area:
                         collide = True
                         tower.place_color = (255, 0, 0, 100)
                         self.moving_object.place_color = (255, 0, 0, 100)
                     else:
                         tower.place_color = (0, 0, 255, 100)
-                        if not collide:
-                            self.moving_object.place_color = (0, 0, 255, 100)
+                        if not collide and not valid_area:
+                            self.moving_object.place_color = (255, 0, 0, 100)
 
             # Event loop:
             for event in pygame.event.get():
@@ -95,14 +112,24 @@ class Game:
                     if self.moving_object:
 
                         if event.button == 1:
-                            not_allowed = False
+                            allowed = True
+                            hit = False
                             # tower_list = self.attack_towers[:] + self.support_towers[:]
+                            # Bisection detection goes here...
+                            """
+                            1. get moving object coords.
+                            2. Find closest two path coordinates
+                            """
+
                             tower_list = self.attack_towers[:]
+
                             for tower in tower_list:
                                 if tower.collide(self.moving_object):
-                                    not_allowed = True
+                                    allowed = False
 
-                            if not not_allowed and self.point_to_line(self.moving_object):
+                            # if allowed and self.point_to_line(self.moving_object) and not hit:
+                            if allowed and self.point_to_line(self.moving_object) and valid_area:
+
                                 if self.moving_object.name in attack_tower_names:
                                     self.attack_towers.append(self.moving_object)
                                     self.money -= self.moving_object.price[0]
@@ -188,6 +215,8 @@ class Game:
                 if result is not None:
                     self.money += result
 
+            # check for enemy HP here..
+
             self.draw()
             if self.gate_health <= 0:
                 print("You Lose")
@@ -197,7 +226,7 @@ class Game:
     def add_tower(self, name):
         x, y = pygame.mouse.get_pos()
         tower_opt_list = {"buy_minigun" : MinigunTower(x, y),
-        "buy_fish": MinigunTower(x, y)}
+        "buy_rocket": RocketTower(x, y)}
 
         #if name == "buy_minigun":
         try:
@@ -224,11 +253,25 @@ class Game:
         # find two closest points
         return True
 
+    def draw_polygon_alpha(self, surface, color, points):
+        lx, ly = zip(*points)
+        min_x, min_y, max_x, max_y = min(lx), min(ly), max(lx), max(ly)
+        target_rect = pygame.Rect(min_x, min_y, max_x - min_x, max_y - min_y)
+        shape_surf = pygame.Surface(target_rect.size, pygame.SRCALPHA)
+        pygame.draw.polygon(shape_surf, color, [(x - min_x, y - min_y) for x, y in points])
+        surface.blit(shape_surf, target_rect)
+
     def draw(self):
         #draw bg
         self.win.blit(self.bg, (0,0))
 
         if self.moving_object:
+            # , pygame.SRCALPHA, 32
+            green_color = pygame.Color(75, 139, 59, 80)
+            for buildable_area in self.buildable_areas:
+                self.draw_polygon_alpha(self.win, green_color, buildable_area)
+            # pygame.draw.polygon(self.win, green_color, self.buildable_areas, width=0)
+
             for tower in self.attack_towers:
                 tower.draw_placement(self.win)
 
@@ -236,26 +279,29 @@ class Game:
             #    tower.draw_placement(self.win)
 
             self.moving_object.draw_placement(self.win)
-
-
+        """
         for p in self.clicks:
             pygame.draw.circle(self.win, (225,255,0), (p[0], p[1]), 5, 0)
+        """
 
         if self.pause:
             # draw enemy travel path
-            enemy = Enemy()
-            for section, node in enumerate(enemy.path):
-                if (section +1) < len(enemy.path):
+            enemy = Enemy(self.path)
+            # enemy.path
+            """
+            for section, node in enumerate(self.path):
+                if (section +1) < len(self.path):
                     x1 = node[0]
                     y1 = node[1]
-                    x2 = enemy.path[section+1][0]
-                    y2 = enemy.path[section+1][1]
+                    x2 = self.path[section+1][0]
+                    y2 = self.path[section+1][1]
                     green_color = pygame.Color(75, 139, 59, 50)
                     pygame.draw.line(self.win, green_color, (x1, y1), (x2, y2), 25)
-
+            """
         # draw gate
         self.win.blit(self.gate, (900, -280))
-
+        # self.play_pause_button.draw(self.win)
+        self.menu.draw(self.win)
         enemies = self.enemies
         for enemy in sorted(enemies, key=self.sort_by_y):
             enemy.draw(self.win)
@@ -263,8 +309,10 @@ class Game:
         for tower in self.attack_towers:
             tower.draw(self.win)
 
-        #self.play_pause_button.draw(self.win)
-        self.menu.draw(self.win)
+        for tower in self.attack_towers:
+            tower.draw_tower_menu(self.win)
+
+
         #lives
         text = self.gate_life_font.render(str(self.gate_health), 1, (0, 100, 0))
         money = self.gate_life_font.render(str(self.money), 1, (0, 100, 0))
