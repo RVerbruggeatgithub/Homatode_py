@@ -18,8 +18,8 @@ pygame.init()
 death_sound = pygame.mixer.Sound(os.path.join("game_assets", "dragon_death.wav"))
 
 class Dragon(Enemy):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, path):
+        super().__init__(path)
         self.name = "Dragon"
         self.money = 50
         self.max_health = 45
