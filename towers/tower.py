@@ -6,10 +6,8 @@ from functions import *
 import random
 
 menu_bg = pygame.transform.scale(load_image("game_assets", "tower_menu.png").convert_alpha(), (120, 70))
-upgrade_btn = pygame.transform.scale(load_image("game_assets", "button_upgrade.png").convert_alpha(), (32, 32))
-sell_btn = pygame.transform.scale(load_image("game_assets", "button_sell.png").convert_alpha(), (32, 32))
-turret_image = pygame.transform.scale(load_image("game_assets", "rocket.png"),(64, 64))
-tower_base = pygame.transform.scale(load_image("game_assets", "tower_base.png").convert_alpha(), (64, 64))
+turret_image = pygame.transform.scale(load_image("game_assets", "rocket.png"),(50, 50))
+tower_base = pygame.transform.scale(load_image("game_assets", "tower_base.png").convert_alpha(), (50, 50))
 structure_placement_sound = pygame.mixer.Sound(os.path.join("game_assets", "structure_placement.mp3"))
 
 class Tower:
@@ -31,20 +29,17 @@ class Tower:
         self.menu_bg = menu_bg
         #self.menu = TowerMenu(self, self.x, self.y, 120, 70, self.menu_bg)
         self.menu = TowerMenu(self.x, self.y - 50, 250, 122, self.menu_bg, self.sell_value)
-        self.menu.set_tower_details(self)
-        self.menu.add_btn(upgrade_btn, "Upgrade")
-        self.menu.add_btn(sell_btn, "Sell")
         self.turret_angle = 0
         self.turret_image = turret_image
         self.tower_base = tower_base
         self.damage = 1
-        self.delay = self.attack_speed = 10 #lower is fast
+        self.delay = self.attack_speed = 10 #lower is faster
         self.place_color = (0,0,255, 100)
-        self.upgrade_btn = upgrade_btn
         self.attack_speed = 1
         self.max_delay = 50
         self.delay = 50
         self.structure_placement_sound = structure_placement_sound
+        self.projectiles = None
 
     def draw(self, win):
         """
@@ -59,20 +54,25 @@ class Tower:
         if self.selected:
             self.menu.draw(win)
 
-    def draw_radius(self,win):
+    def draw_tower_menu(self, win):
+        if self.selected:
+            self.menu.draw(win)
+
+    def draw_radius(self, win):
         if self.selected:
             # draw range circle
-            surface = pygame.Surface((self.range * 4, self.range * 4), pygame.SRCALPHA, 32)
+            surface = pygame.Surface((self.range * 3, self.range * 3), pygame.SRCALPHA, 32)
             pygame.draw.circle(surface, (128, 128, 128, 100), (self.range, self.range), self.range, 0)
 
             win.blit(surface, (self.x - self.range, self.y - self.range))
 
-    def draw_placement(self,win):
+    def draw_placement(self, win):
         # draw range circle
         surface = pygame.Surface((self.range * 4, self.range * 4), pygame.SRCALPHA, 32)
-        pygame.draw.circle(surface, self.place_color, (50,50), 50, 0)
+        placement_circle = self.turret_image.get_width() / 2
+        pygame.draw.circle(surface, self.place_color, (placement_circle, placement_circle), placement_circle, 0)
 
-        win.blit(surface, (self.x - 50, self.y - 50))
+        win.blit(surface, (self.x - placement_circle, self.y - placement_circle))
 
     def click(self, X, Y):
         """
@@ -84,6 +84,7 @@ class Tower:
         """
         #img = self.tower_imgs[self.level - 1]
         img = self.turret_image
+
         if X <= self.x - img.get_width()//2 + self.width and X >= self.x - img.get_width()//2:
             if Y <= self.y + self.height - img.get_height()//2 and Y >= self.y - img.get_height()//2:
                 return True
@@ -114,6 +115,9 @@ class Tower:
         action_sound = pygame.mixer.Sound(self.structure_placement_sound)
         action_sound.set_volume(0.6)
         action_sound.play()
+        # THIS ISN'T QUITE RIGHT!
+        self.menu.add_btn(upgrade_btn, "Upgrade")
+        self.menu.add_btn(sell_btn, "Sell")
 
     def upgrade(self):
         """
@@ -157,14 +161,70 @@ class Tower:
         self.menu.update()
 
     def collide(self, otherTower):
+        """
+        Detect collision with towers
+        :param otherTower: list of polygon shapes
+        :return: Bool
+        """
+
+        x1 = self.x
+        y1 = self.y
         x2 = otherTower.x
         y2 = otherTower.y
+        return self.collide_coordinates(x1, y1, x2, y2)
 
+    def collide_coordinates(self, x1, y1, x2, y2):
         dis = math.sqrt((x2 - self.x)**2 + (y2 - self.y)**2)
-        if dis >= 100:
+        if dis >= self.tower_base.get_width():
             return False
         else:
             return True
+
+    def locations_collide(self, locations):
+        """
+        Detect collision with areas
+        :param locations: list of polygon shapes
+        :return: Bool
+        """
+        hit = False
+        for location in locations:
+            hit = self.location_collide(location)
+            if hit:
+                break
+        return hit
+
+    def location_collide(self, location):
+        """
+        http://www.jeffreythompson.org/collision-detection/poly-point.php
+        Detect collision with a polygon
+        :param location: list of coordinates of polygon
+        :return: Bool
+        """
+        collision = False
+
+        # go through each of the vertices, plus
+        # the next vertex in the list
+        pnext = 0
+
+        for idx, current in enumerate(location):
+            # get next vertex in list
+            # if we've hit the end, wrap around to 0
+            pnext = idx + 1
+            if pnext == len(location):
+                pnext = 0
+
+            # get the PVectors at our current position
+            # this makes our if statement a little cleaner
+            vc_x = current[0]  # c for "current"
+            vc_y = current[1]
+            vn_x = location[pnext][0]  # n for "next"
+            vn_y = location[pnext][1]
+            # compare position, flip 'collision' variable
+            # back and forth
+            if ((vc_y >= self.y and vn_y < self.y) or (vc_y < self.y and vn_y >= self.y)) and (
+                    self.x < (vn_x - vc_x) * (self.y - vc_y) / (vn_y - vc_y) + vc_x):
+                collision = not collision
+        return collision
 
     def rotate(self, turret_angle, offset, pivot_point):
         """
