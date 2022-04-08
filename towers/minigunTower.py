@@ -17,7 +17,7 @@ for t in range (1, 4):
     turret_level_imgs = []
     for x in range(1, 4):
         turret_level_imgs.append(pygame.transform.scale(
-            pygame.image.load(os.path.join("game_assets", "minigun_" +str(t) + "_" +str(x) + ".png")).convert_alpha(), (64, 64)))
+            pygame.image.load(os.path.join("game_assets", "minigun_" +str(t) + "_" +str(x) + ".png")).convert_alpha(), (50, 50)))
     turret_imgs[t] = turret_level_imgs
 
 
@@ -27,22 +27,23 @@ class MinigunTower(Tower):
         self.turret_image = turret_imgs[self.level][0]
         self.turret_imgs = turret_imgs
         self.tower_count = 0
-        self.range = 200
+        self.range = 150
         self.original_range = self.range
         self.inRange = False
         self.left = True
         self.damage = 2
         self.accuracy = 0.5
         self.original_damage = self.damage
-        self.width = self.height = 90
+        self.width = self.height = self.tower_base.get_width()
         self.moving = False
         self.name = "Minigun Tower"
         self.sell_value = [500,1000,2000]
         self.price = [1000,2000, "MAX"]
         self.upgrade_bonus_dmg = [0, 1, 3]
-        self.upgrade_bonus_range = [0, 20, 30]
+        self.upgrade_bonus_range = [0, 15, 25]
         self.upgrade_bonus_accuracy = [0, 0.05, 0.05]
         self.upgrade_bonus_atk_speed = [0, 4, 5]
+        self.menu.set_tower_details(self)
         # attack speed, higher is faster. Anything above max_delay (tower()) will be set to 0 delay)
         self.attack_speed = 16
         # bullet hole image
@@ -119,10 +120,12 @@ class MinigunTower(Tower):
         self.inRange = False
         enemy_closest = []
         for enemy in enemies:
-            x = enemy.x
-            y = enemy.y
+            twr_center_x = self.x + self.turret_image.get_width() / 2 +20
+            twr_center_y = self.y + self.turret_image.get_height() / 2 +20
+            nme_center_x = enemy.x + enemy.img.get_width() / 2
+            nme_center_y = enemy.y + enemy.img.get_height() / 2
 
-            dis = math.sqrt((self.x - enemy.img.get_width()/2 - x)**2 + (self.y - enemy.img.get_height()/2 - y)**2)
+            dis = math.sqrt((twr_center_x - nme_center_x)**2 + (twr_center_y - nme_center_y)**2)
             if dis < self.range:
                 self.inRange = True
                 enemy_closest.append(enemy)
