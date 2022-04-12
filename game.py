@@ -2,6 +2,9 @@ import pygame
 import os
 from enemies.enemy import Enemy
 from enemies.dragon import Dragon
+from enemies.zombie import Zombie
+from items.item import Item
+from items.gold import Gold
 from functions import *
 #https://www.youtube.com/watch?v=iLHAKXQBOoA 2:06:00 towers!
 from menu.menu import *
@@ -29,7 +32,7 @@ class Game:
         self.win = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
         self.enemies = []
         self.gate_health = 1000
-        self.money = 300000
+        self.money = 5000
         self.path = [(0, 429), (47, 429), (124, 418), (216, 386), (280, 353), (333, 329), (412, 323), (481, 276),
                      (540, 209), (600, 186), (656, 203), (718, 263), (820, 374), (900, 485), (916, 582), (953, 696),
                      (1008, 770), (1092, 780), (1180, 750), (1199, 661), (1222, 556), (1268, 518), (1292, 458),
@@ -53,15 +56,18 @@ class Game:
         self.moving_object = None
         self.play_pause_button = PlayPauseButton(play_btn, pause_btn, 129, self.height - 142)
         self.selected_tower = []
+        self.items_list = [Gold(200, 200, 1, 10)]
         self.menu = buildingMenu(100, self.height - 25, 500, 200)
         self.menu.add_configured_btn(self.play_pause_button)
         minigun_t = MinigunTower(0, 0)
+        rocket_t = RocketTower(0, 0)
         # below's second parameter is the name of the button
         self.menu.add_btn(ico_minigun, "buy_minigun", "Minigun", minigun_t.price[0])
-        self.menu.add_btn(ico_rocket, "buy_rocket", "RocketTower",  minigun_t.price[0])
+        self.menu.add_btn(ico_rocket, "buy_rocket", "RocketTower",  rocket_t.price[0])
         self.menu.add_btn(ico_laser, "buy_chips", "Buy Chips",  minigun_t.price[0])
         self.menu.add_btn(ico_laser, "buy_cannon", "Buy Cannon", minigun_t.price[0])
         del minigun_t
+        del rocket_t
         self.random_timer = 1
 
         #self.pause_btn = PlayPauseButton(sound_btn, sound_btn_off, 90, self.height - 85)
@@ -71,12 +77,13 @@ class Game:
         clock = pygame.time.Clock()
 
         while run:
-            clock.tick(30)
-            if self.pause == False:
-                if time.time() - self.timer > self.random_timer:
+
+            if not self.pause:
+                clock.tick(30)
+                if time.time() - self.timer > random.randint(10, 40) / 15:
                         self.timer = time.time()
                         #self.random_timer = random.randint(10, 35) / 15
-                        self.enemies.append(random.choice([Dragon(self.path)]))
+                        self.enemies.append(random.choice([Zombie(self.path)]))
 
             mouse_pos = pygame.mouse.get_pos()
             valid_area = False
@@ -105,7 +112,14 @@ class Game:
             # Event loop:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                        run = False
+                    run = False
+
+
+                for item in self.items_list:
+                    if item.collide(mouse_pos[0], mouse_pos[1]):
+                        if item.name == "gold":
+                            self.money += item.pickup()
+                        self.items_list.remove(item)
 
                 if event.type == pygame.MOUSEBUTTONUP:
                     # if you're moving an object and click
@@ -156,6 +170,7 @@ class Game:
                         """
                         # look if you click on build menu
                         side_menu_button = self.menu.get_clicked(mouse_pos[0], mouse_pos[1])
+                        print(self.menu.get_item_cost(side_menu_button), side_menu_button)
                         if side_menu_button:
                             cost = self.menu.get_item_cost(side_menu_button)
                             if self.money >= cost:
@@ -200,27 +215,39 @@ class Game:
                     print(self.clicks)
                 """
             to_del = []
-            for enemy in self.enemies:
-                enemy.move()
-                if enemy.path_pos >= len(enemy.path) - 1:
-                    to_del.append(enemy)
+            if not self.pause:
 
-            for enemy in to_del:
-                self.gate_health -= enemy.gate_damage
-                # print(d.travelled_path)
-                self.enemies.remove(enemy)
+                for enemy in self.enemies:
+                    enemy.move()
+                    if enemy.path_pos >= len(enemy.path) - 1:
+                        to_del.append(enemy)
 
-            for tower in self.attack_towers:
-                result = tower.find_target(self.enemies)
-                if result is not None:
-                    self.money += result
+                for enemy in to_del:
+                    self.gate_health -= enemy.gate_damage
+                    # print(d.travelled_path)
+                    self.enemies.remove(enemy)
 
-            # check for enemy HP here..
+                for tower in self.attack_towers:
+                    # item dropping here..
+                    result = tower.find_target(self.enemies)
+                    if result is not None:
+                        for items in result:
+                            self.items_list = [*self.items_list, *items]
 
-            self.draw()
+                # check for enemy HP here..
+            """
+                                # item dropping here..
+                    result = tower.find_target(self.enemies)
+                    if len(result) > 0:
+                        # Join the lists
+                        self.items_list = [*self.items_list, *result]
+                        print(self.items_list)
+            """
+
             if self.gate_health <= 0:
                 print("You Lose")
                 run = False
+            self.draw()
         pygame.quit()
 
     def add_tower(self, name):
@@ -264,6 +291,10 @@ class Game:
     def draw(self):
         #draw bg
         self.win.blit(self.bg, (0,0))
+
+        if len(self.items_list) > 0:
+            for item in self.items_list:
+                item.draw(self.win)
 
         if self.moving_object:
             # , pygame.SRCALPHA, 32

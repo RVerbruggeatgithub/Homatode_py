@@ -141,6 +141,7 @@ class MinigunTower(Tower):
             self.turret_angle = point_direction(first_enemy.x, first_enemy.y, self.x, self.y)
 
             return self.attack(enemies, first_enemy)
+
             """
             if self.tower_count == 50:
                 if first_enemy.hit(self.damage) == True:
@@ -177,7 +178,7 @@ class MinigunTower(Tower):
             channel = pygame.mixer.find_channel(False)
             if not channel is None:
                 channel.play(action_sound)
-
+            dropping_items = []
             x_variety = random.randint(1, 20) - 10
             y_variety = random.randint(1, 20) - 10
             self.holes.append([5, enemy.x + x_variety, enemy.y + y_variety])
@@ -185,15 +186,16 @@ class MinigunTower(Tower):
                 if enemy.hit(self.damage) == True:
                     self.holes = []
                     self.kill_locations.append([5, enemy.x, enemy.y, enemy.death_sequence])
+                    dropping_items.append(enemy.items)
                     if channel:
                         channel.stop()
                     death_ = pygame.mixer.Sound(enemy.death_sound)
                     death_.set_volume(0.1)
                     death_.play()
-                    money = enemy.money
                     enemies.remove(enemy)
+                    return dropping_items
                     # add
 
             self.delay = self.max_delay
 
-        return money
+

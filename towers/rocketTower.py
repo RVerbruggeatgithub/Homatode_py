@@ -26,6 +26,15 @@ for x in range(1, 4):
     #    pygame.image.load(os.path.join("game_assets", "rocketl_" +str(t) + "_" +str(x) + ".png")).convert_alpha(), (50, 50)))
 turret_imgs[t] = turret_level_imgs
 
+# for now, images for RT lvl 1 and 2 are the same..
+for x in range(1, 4):
+    t = 1
+    turret_level_imgs.append(pygame.transform.scale(
+        pygame.image.load(os.path.join("game_assets", "rocketl_" +str(t) + "_" +str(x) + ".png")).convert_alpha(), (50, 50)))
+    #turret_level_imgs.append(pygame.transform.scale(
+    #    pygame.image.load(os.path.join("game_assets", "rocketl_" +str(t) + "_" +str(x) + ".png")).convert_alpha(), (50, 50)))
+turret_imgs[2] = turret_level_imgs
+
 
 class RocketTower(Tower):
     def __init__(self, x,y):
@@ -33,7 +42,7 @@ class RocketTower(Tower):
         self.turret_image = turret_imgs[self.level][0]
         self.turret_imgs = turret_imgs
         self.tower_count = 0
-        self.range = 500
+        self.range = 300
         self.original_range = self.range
         self.delay = self.attack_speed = 1.5  # lower is slower
         self.inRange = False
@@ -44,17 +53,22 @@ class RocketTower(Tower):
         self.width = self.height = self.tower_base.get_width()
         self.moving = False
         self.name = "Rocket Tower"
-        self.sell_value = [500,1000,2000]
-        self.price = [1000,2000, "MAX"]
-        self.upgrade_bonus_dmg = [0, 1, 3]
-        self.upgrade_bonus_range = [0, 15, 25]
-        self.upgrade_bonus_accuracy = [0, 0.05, 0.05]
-        self.upgrade_bonus_atk_speed = [0, 4, 5]
+        self.sell_value = [700,1400,2800]
+        self.price = [1400, "MAX", "MAX"]
+        self.upgrade_bonus_dmg = [0, 3, 6]
+        self.upgrade_bonus_range = [0, 50, 75]
+        self.upgrade_bonus_accuracy = [0, 0, 0]
+        self.upgrade_bonus_atk_speed = [0, 0, 2]
+        self.upgrade_bonus_splash_range = [0, 15, 25]
         self.menu.set_tower_details(self)
+        self.max_splash_range = 100
         # attack speed, higher is faster. Anything above max_delay (tower()) will be set to 0 delay)
-
         self.action_sound = minigun_sound
         self.projectiles = []
+        self.enable_double_fire = False
+
+
+
 
     def get_upgrade_cost(self):
         """
@@ -105,12 +119,31 @@ class RocketTower(Tower):
         """
         self.range = r
 
+    def upgrade(self):
+        """
+        upgrades the tower for a given cost
+        :return: None
+        """
+        if self.level < len(self.turret_imgs):
+            self.level += 1
+            self.damage += self.upgrade_bonus_dmg[self.level-1]
+            self.accuracy += self.upgrade_bonus_accuracy[self.level - 1]
+            self.range += self.upgrade_bonus_range[self.level - 1]
+            self.attack_speed += self.upgrade_bonus_atk_speed[self.level - 1]
+            self.turret_image = self.turret_imgs[self.level][0]
+            self.max_splash_range += self.upgrade_bonus_splash_range[self.level - 1]
+
+        if self.level > 1:
+            self.enable_double_fire = True
+
+
     def find_target(self, enemies):
         """
         attacks an enemy in the enemy list, modifies the list
         :param enemies: list of enemies
         :return: None
         """
+        dropping_items = []
         if len(self.projectiles) > 0:
             for projectile in self.projectiles:
                 if not projectile.move():
@@ -119,22 +152,23 @@ class RocketTower(Tower):
                     # get all enemies in range of explosion projectile.explosion_range
                     for enemy in enemies:
                         check_distance = get_distance(projectile.x, projectile.y, enemy.x, enemy.y)
-                        splash_damage_per_distance = self.damage / projectile.max_splash_range
-                        if check_distance <= projectile.max_splash_range:
+                        splash_damage_per_distance = self.damage / self.max_splash_range
+                        if check_distance <= self.max_splash_range:
                             # The closer the unit to the source 'explosion' the more damage.
-                            resulting_damage = round(((projectile.max_splash_range - check_distance) + 1) * splash_damage_per_distance)
+                            resulting_damage = round(((self.max_splash_range - check_distance) + 1) * splash_damage_per_distance)
                             # cur_opponent.hp -= resulting_damage
 
                             if enemy.hit(resulting_damage):
                                 death_ = pygame.mixer.Sound(projectile.target.death_sound)
                                 death_.set_volume(0.1)
                                 death_.play()
-                                x_money += enemy.money
+
+                                dropping_items.append(enemy.items)
                                 enemies.remove(enemy)
 
                         # add
-                    money = x_money
                     self.projectiles.remove(projectile)
+                    return dropping_items
 
         self.inRange = False
         enemy_closest = []
@@ -159,7 +193,7 @@ class RocketTower(Tower):
                 y_mod = delta_y / abs(delta_y)
             self.turret_angle = point_direction(first_enemy.x, first_enemy.y, self.x, self.y)
 
-            return self.attack(enemies, first_enemy)
+            self.attack(enemies, first_enemy)
             """
             if self.tower_count == 50:
                 if first_enemy.hit(self.damage) == True:
@@ -192,7 +226,16 @@ class RocketTower(Tower):
                 channel.play(action_sound)
 
             """
-            self.projectiles.append(Rocket(self.x, self.y, enemy.x, enemy.y, enemy))
+            if not self.enable_double_fire:
+                self.projectiles.append(Rocket(self.x, self.y, enemy.x, enemy.y, enemy))
+            else :
+                spawn_x_mod_a = random.randint(1, 30) - 15
+                spawn_y_mod_a = random.randint(1, 30) - 15
+                spawn_x_mod_b = random.randint(1, 30) - 15
+                spawn_y_mod_b = random.randint(1, 30) - 15
+                self.projectiles.append(Rocket(self.x + spawn_x_mod_a, self.y + spawn_y_mod_a, enemy.x + spawn_x_mod_b, enemy.y + spawn_y_mod_b, enemy))
+                self.projectiles.append(Rocket(self.x + spawn_x_mod_b, self.y + spawn_y_mod_b, enemy.x + spawn_x_mod_a, enemy.y + spawn_y_mod_a, enemy))
+
             self.delay = self.max_delay
 
         return money

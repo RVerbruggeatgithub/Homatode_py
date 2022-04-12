@@ -22,7 +22,6 @@ class Rocket(Projectile):
         self.boundary = 16
         self.img = projectile_image
         self.angle = 0
-        self.max_splash_range = 100;
 
     def set_target(self, x, y):
         self.target_x = x

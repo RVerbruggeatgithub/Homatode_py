@@ -2,10 +2,8 @@ import pygame
 import math
 import os
 from functions import *
-
-
-
-
+from items.gold import Gold
+import random
 
 class Enemy:
     def __init__(self, path):
@@ -32,9 +30,16 @@ class Enemy:
         self.angle = 0
         self.anim_seq = 0
         self.size = 1
+        self.items = []
+        self.droppable_items = [Gold(self.x, self.y, 3, 10)]
         # max allowed deviation from a node
         self.boundary = (0.85 * self.speed_increase)
         self.death_sequence = []
+
+    def generate_item(self):
+        item_t = random.choice(self.droppable_items)
+        item_t.update_location(self.x, self.y)
+        self.items.append(item_t)
 
     def draw(self, win):
         """
@@ -48,9 +53,8 @@ class Enemy:
         """
 
         self.img = self.imgs[self.animation_count]
-
-        shadow_radius = self.img.get_width() / 4
-
+        # Draw shadow
+        shadow_radius = self.img.get_width() / 4 * self.size
         surface = pygame.Surface((200, 200), pygame.SRCALPHA, 32)
         pygame.draw.circle(surface, (0, 0, 0, 94), (32, (32 + shadow_radius / 2)), shadow_radius, 0)
         win.blit(surface, (self.x - 32, self.y - 32))
@@ -132,5 +136,6 @@ class Enemy:
         """
         self.health -= damage
         if self.health <= 0:
+            self.generate_item()
             return True
         return False

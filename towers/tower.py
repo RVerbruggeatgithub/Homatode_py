@@ -244,13 +244,13 @@ class Tower:
         """
         Action for when attacking
         :param enemies: enemy
-        :return: None
+        :return: Item
         """
 
     def attack(self, enemies):
         """
         Action for when attacking
         :param enemies: enemy
-        :return: None
+        :return: Item
         """
 
