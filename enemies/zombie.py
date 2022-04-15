@@ -18,7 +18,7 @@ for x in range(1, 6):
     death_sequence.append(pygame.transform.scale(load_image("game_assets", "dead_explode_" + str(x) + ".png"),
         (64, 64)))
 pygame.init()
-death_sound = pygame.mixer.Sound(os.path.join("game_assets", "dragon_death.wav"))
+death_sound = pygame.mixer.Sound(os.path.join("game_assets", "zombie_death.mp3"))
 
 class Zombie(Enemy):
     def __init__(self, path):

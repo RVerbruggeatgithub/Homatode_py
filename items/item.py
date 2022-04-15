@@ -22,6 +22,9 @@ class Item:
         self.max_quantity = max_q
         self.img = item_image
         self.name = "item"
+        self.pickup_sound = None
+        # how long does the item stay on the field until despawned? devide time by ticker to get time in seconds.
+        self.despawn_timer = 300
 
     def draw(self, win):
         """
@@ -59,3 +62,10 @@ class Item:
     def update_location(self, x, y):
         self.x = x
         self.y = y
+
+    def play_pickup_sound(self):
+        action_sound = pygame.mixer.Sound(self.pickup_sound)
+        action_sound.set_volume(0.1)
+        channel = pygame.mixer.find_channel(False)
+        if channel is not None:
+            channel.play(action_sound)

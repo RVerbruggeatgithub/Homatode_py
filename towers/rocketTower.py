@@ -11,7 +11,7 @@ import random
 
 pygame.init()
 bullet_hole = pygame.transform.scale(load_image("game_assets", "bullet_hole.png").convert_alpha(), (10, 10))
-minigun_sound = pygame.mixer.Sound(os.path.join("game_assets", "minigun.mp3"))
+rocket_sound = pygame.mixer.Sound(os.path.join("game_assets", "explosion.mp3"))
 
 
 # load tower images
@@ -63,7 +63,7 @@ class RocketTower(Tower):
         self.menu.set_tower_details(self)
         self.max_splash_range = 100
         # attack speed, higher is faster. Anything above max_delay (tower()) will be set to 0 delay)
-        self.action_sound = minigun_sound
+        self.action_sound = rocket_sound
         self.projectiles = []
         self.enable_double_fire = False
 
@@ -226,6 +226,9 @@ class RocketTower(Tower):
                 channel.play(action_sound)
 
             """
+            death_ = pygame.mixer.Sound(self.action_sound)
+            death_.set_volume(0.1)
+            death_.play()
             if not self.enable_double_fire:
                 self.projectiles.append(Rocket(self.x, self.y, enemy.x, enemy.y, enemy))
             else :

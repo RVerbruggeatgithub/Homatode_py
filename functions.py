@@ -1,6 +1,7 @@
 import pygame
 import os
 import math
+import random
 from itertools import tee, islice, chain
 
 def load_image(dir, path):
@@ -23,4 +24,12 @@ def previous_and_next(some_iterable):
     prevs = chain([None], prevs)
     nexts = chain(islice(nexts, 1, None), [None])
     return zip(prevs, items, nexts)
+
+def generate_alternative_path(path, max_deviation):
+    x_deviation = random.randint(0, max_deviation * 2) - max_deviation
+    y_deviation = random.randint(0, max_deviation * 2) - max_deviation
+    new_path = []
+    for segment in path:
+        new_path.append((segment[0]+x_deviation, segment[1]+y_deviation))
+    return new_path
 

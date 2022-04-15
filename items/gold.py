@@ -5,8 +5,9 @@ import math
 from functions import *
 from .item import Item
 import random
-
+pygame.init()
 item_image = pygame.transform.scale(load_image("game_assets", "gold.png"), (50, 50))
+pickup_sound = pygame.mixer.Sound(os.path.join("game_assets", "gold_drop.mp3"))
 
 
 class Gold(Item):
@@ -23,6 +24,8 @@ class Gold(Item):
         self.max_quantity = max_q
         self.img = item_image
         self.name = "gold"
+        self.pickup_sound = pickup_sound
+        self.despawn_timer = 300
 
     def draw(self, win):
         """

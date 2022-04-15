@@ -5,6 +5,7 @@ from enemies.dragon import Dragon
 from enemies.zombie import Zombie
 from items.item import Item
 from items.gold import Gold
+from items.counter import Counter
 from functions import *
 #https://www.youtube.com/watch?v=iLHAKXQBOoA 2:06:00 towers!
 from menu.menu import *
@@ -56,7 +57,8 @@ class Game:
         self.moving_object = None
         self.play_pause_button = PlayPauseButton(play_btn, pause_btn, 129, self.height - 142)
         self.selected_tower = []
-        self.items_list = [Gold(200, 200, 1, 10)]
+        self.items_list = []
+        self.counter_list = []
         self.menu = buildingMenu(100, self.height - 25, 500, 200)
         self.menu.add_configured_btn(self.play_pause_button)
         minigun_t = MinigunTower(0, 0)
@@ -79,11 +81,12 @@ class Game:
         while run:
 
             if not self.pause:
-                clock.tick(30)
+                clock.tick(60)
                 if time.time() - self.timer > random.randint(10, 40) / 15:
                         self.timer = time.time()
                         #self.random_timer = random.randint(10, 35) / 15
-                        self.enemies.append(random.choice([Zombie(self.path)]))
+                        gen_path = generate_alternative_path(self.path, 14)
+                        self.enemies.append(random.choice([Zombie(gen_path)]))
 
             mouse_pos = pygame.mouse.get_pos()
             valid_area = False
@@ -117,8 +120,12 @@ class Game:
 
                 for item in self.items_list:
                     if item.collide(mouse_pos[0], mouse_pos[1]):
+                        quantity = 0
                         if item.name == "gold":
-                            self.money += item.pickup()
+                            item.play_pickup_sound()
+                            quantity = item.pickup()
+                            self.money += quantity
+                        self.counter_list.append(Counter(quantity, item.x, item.y))
                         self.items_list.remove(item)
 
                 if event.type == pygame.MOUSEBUTTONUP:
@@ -295,6 +302,16 @@ class Game:
         if len(self.items_list) > 0:
             for item in self.items_list:
                 item.draw(self.win)
+                item.despawn_timer -= 1
+                if item.despawn_timer <= 0:
+                    self.items_list.remove(item)
+
+        if len(self.counter_list) > 0:
+            for counter in self.counter_list:
+                counter.draw(self.win)
+                counter.despawn_timer -= 1
+                if counter.despawn_timer <= 0:
+                    self.counter_list.remove(counter)
 
         if self.moving_object:
             # , pygame.SRCALPHA, 32
